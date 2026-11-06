@@ -30,7 +30,6 @@ inline std::string Space::checkpoint() const {
   }
   w.u64(state->ports.size());
   for (const auto& [port, object] : state->ports) { w.string(port); w.string(object); }
-  if (w.data.size() > max_checkpoint_bytes - 8) throw std::length_error("qSSD checkpoint budget exceeded");
   return w.finish();
 }
 inline Space Space::restore(const std::string& bytes) {
@@ -41,7 +40,13 @@ inline Space Space::restore(const std::string& bytes) {
   if (cpu.compare(0, 5, "RVPC2") != 0) throw std::invalid_argument("qSSD missing native CPU authority");
   state->cpu = reverse_pc::rvpc2::restore({cpu.begin(), cpu.end()});
   auto bounded = [&](std::size_t cap) { auto n = r.u64(); if (n > cap) throw std::length_error("qSSD checkpoint dimensions"); return n; };
-  const auto nf = bounded(max_objects);
+  auto records = [&](std::size_t minimum) {
+    auto n = r.u64();
+    if (n > (r.end - r.at) / minimum) throw std::length_error("qSSD truncated checkpoint table");
+    return n;
+  };
+  // Bound table counts by their actual payload, never by an arbitrary quota.
+  const auto nf = records(24);
   std::vector<FieldPtr> fields;
   for (std::size_t i = 0; i < nf; ++i) {
     const auto count = bounded(xgpu::domain_limit), bands = bounded(xgpu::max_bands);
@@ -62,11 +67,11 @@ inline Space Space::restore(const std::string& bytes) {
     }
     field.validate(); fields.push_back(std::make_shared<const Field>(std::move(field)));
   }
-  const auto no = bounded(max_objects);
+  const auto no = records(34);
   std::set<std::uint64_t> identities;
   std::set<std::size_t> used_fields;
   for (std::size_t i = 0; i < no; ++i) {
-    const auto name = r.string(128); valid_name(name);
+    const auto name = r.string(bytes.size()); valid_name(name);
     const auto id = r.u64(), revision = r.u64();
     const auto kind = r.byte();
     if (!id || id >= state->next_id || !revision || revision > state->revision || kind > 1 || !identities.insert(id).second)
@@ -84,12 +89,12 @@ inline Space Space::restore(const std::string& bytes) {
     if (!state->objects.emplace(name, Object{id, revision, field, quantum}).second) throw std::invalid_argument("qSSD duplicate identity");
   }
   if (!state->next_id || used_fields.size() != fields.size()) throw std::invalid_argument("qSSD invalid field topology");
-  const auto np = bounded(max_ports);
+  const auto np = records(22);
   for (std::size_t i = 0; i < np; ++i) {
-    const auto port = r.string(132), object = r.string(128); valid_port(port); valid_name(object);
+    const auto port = r.string(bytes.size()), object = r.string(bytes.size()); valid_port(port); valid_name(object);
     if (!state->objects.count(object) || !state->ports.emplace(port, object).second) throw std::invalid_argument("qSSD dangling/duplicate port");
   }
-  r.done(); budget(*state);
+  r.done();
   Space result; std::atomic_store(&result.control_->head, std::shared_ptr<const State>(std::move(state))); return result;
 }
 }  // namespace qssd

@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     }
     if (argc == 5 && std::string(argv[1]) == "run-xi") {
       auto space = qssd::Space::restore(qssd::read_file(argv[2]));
-      const auto output = space.execute_cpu(qssd::read_file(argv[3], 16u * 1024 * 1024));
+      const auto output = space.execute_cpu(qssd::read_file(argv[3]));
       qssd::save_new(argv[4], space.checkpoint()); std::cout << output; return 0;
     }
     if (argc == 4 && std::string(argv[1]) == "export-cpu") {

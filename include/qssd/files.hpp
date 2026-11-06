@@ -1,16 +1,21 @@
 #pragma once
 #include <cerrno>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
+#include <stdexcept>
+#include <string>
 #include <system_error>
 #include <vector>
 #include <fcntl.h>
 #include <unistd.h>
 
 namespace qssd {
-inline std::string read_file(const std::filesystem::path& path, std::size_t cap = max_checkpoint_bytes) {
+inline std::string read_file(const std::filesystem::path& path, std::size_t cap = std::numeric_limits<std::size_t>::max()) {
   const auto size = std::filesystem::file_size(path);
-  if (size > cap) throw std::length_error("qSSD file budget exceeded");
+  if (size > cap || size > std::string().max_size() || size > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max()))
+    throw std::length_error("qSSD file size cannot be read with the selected capacity");
   std::ifstream in(path, std::ios::binary);
   if (!in) throw std::runtime_error("cannot read qSSD file");
   std::string bytes(static_cast<std::size_t>(size), '\0');

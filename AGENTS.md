@@ -14,3 +14,7 @@
   relevantes cuando se cambie la integración de los núcleos.
 - Mantener la vista de una revisión válida durante trabajos en curso; una nueva
   adquisición debe observar la versión actual de la autoridad común.
+- Conservar el crecimiento dinámico de QSSD por defecto: sin cuotas fijas de
+  historial, marcadores, objetos, puertos, descripciones o checkpoints. Una
+  retención finita debe ser una elección explícita del consumidor. Validar
+  integridad, dimensiones reales y desbordamientos sin reintroducir esos topes.

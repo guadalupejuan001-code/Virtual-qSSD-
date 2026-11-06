@@ -4,18 +4,20 @@
 #include "integration/state_io.hpp"
 #include <atomic>
 #include <functional>
+#include <limits>
 #include <mutex>
 #include <set>
 
 namespace qssd {
 using Field = xgpu::Field;
 using FieldPtr = std::shared_ptr<const Field>;
-constexpr std::size_t max_objects = 1024, max_ports = 4096;
-constexpr std::size_t max_descriptor_bytes = 12u * 1024 * 1024;
-constexpr std::size_t max_checkpoint_bytes = 64u * 1024 * 1024;
+// Source-compatible names now express the host size representation. qSSD
+// imposes no object, port, aggregate descriptor or checkpoint quota.
+constexpr std::size_t max_objects = std::numeric_limits<std::size_t>::max(), max_ports = max_objects;
+constexpr std::size_t max_descriptor_bytes = max_objects, max_checkpoint_bytes = max_objects;
 
 inline void valid_name(const std::string& name) {
-  if (name.empty() || name.size() > 128) throw std::invalid_argument("invalid qSSD identity name");
+  if (name.empty()) throw std::invalid_argument("invalid qSSD identity name");
   for (unsigned char c : name)
     if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
           c == '_' || c == '-' || c == '.')) throw std::invalid_argument("invalid qSSD identity character");
@@ -68,19 +70,6 @@ class Space {
     if (link == state.ports.end()) throw std::out_of_range("qSSD port is not bound");
     return state.objects.at(link->second);
   }
-  static void budget(const State& state) {
-    if (state.objects.size() > max_objects || state.ports.size() > max_ports)
-      throw std::length_error("qSSD identity/port budget exceeded");
-    std::set<const Field*> seen;
-    std::size_t bytes = 0;
-    for (const auto& [name, object] : state.objects) {
-      (void)name;
-      if (!object.field || !seen.insert(object.field.get()).second) continue;
-      bytes += 24 * object.field->bands.size() + 12 * object.field->details.size();
-      for (const auto& band : object.field->bands) bytes += 4 * band.mode.coefficients.size();
-      if (bytes > max_descriptor_bytes) throw std::length_error("qSSD compact-description budget exceeded");
-    }
-  }
   static void publish(State& state, const std::string& name, FieldPtr field, const std::string& quantum_address = {}) {
     valid_name(name);
     if (bool(field) == !quantum_address.empty()) throw std::invalid_argument("qSSD identity must have one representation");
@@ -98,7 +87,6 @@ class Space {
     std::lock_guard<std::mutex> lock(control_->mutex);
     auto next = std::make_shared<State>(*control_->head);
     if (!operation(*next)) return;
-    budget(*next);
     if (next->revision == UINT64_MAX) throw std::overflow_error("qSSD space revision overflow");
     ++next->revision;
     std::atomic_store(&control_->head, std::shared_ptr<const State>(std::move(next)));

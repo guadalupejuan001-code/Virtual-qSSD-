@@ -1,0 +1,99 @@
+{
+  "cycle": "C04",
+  "base_commit": "9e94cf59eefdd24e403e8fecb9677788ca76b876",
+  "dependencies": {
+    "mundo-x": {
+      "repository": "guadalupejuan001-code/mundo-X",
+      "commit": "e2778d962af22f6f1a0794058dd4685fc2573966"
+    },
+    "reverse-pc": {
+      "repository": "guadalupejuan001-code/REVERSE-PC",
+      "commit": "08c363e6c6855c14026c86046af7183a45f45a98"
+    },
+    "gpu-virtual": {
+      "repository": "guadalupejuan001-code/GPU-VIRTUAL",
+      "commit": "6f9a8affa0b1cee4028f8145922fd6dbdbefbefb"
+    }
+  },
+  "release": {
+    "ctest_passed": 6,
+    "ctest_failed": 0
+  },
+  "asan_ubsan": {
+    "ctest_passed": 6,
+    "ctest_failed": 0,
+    "leak_detection": false
+  },
+  "local_lsan": {
+    "status": "environment_unavailable",
+    "reason": "LeakSanitizer cannot open /proc process task directories in this executor; leak checking remains enabled in the GitHub Actions workflow."
+  },
+  "metrics": [
+    {
+      "state_bus": "PASS",
+      "checks": 23,
+      "concurrent_writes": 4000,
+      "full_graph_consistent": true,
+      "archive_deduplicated": true
+    },
+    {
+      "dynamic_growth": "PASS",
+      "checks": 24,
+      "retained_revisions": 10003,
+      "bookmarks": 1001,
+      "archive_sections": 603,
+      "archive_payload_bytes": 67108865,
+      "arbitrary_qssd_quotas": false
+    },
+    {
+      "shared_projection": "PASS",
+      "three_port_same_value": true,
+      "retained_old_versions": true,
+      "concurrent_acquisitions": 8000
+    },
+    {
+      "profile": "XGPU-C01",
+      "checks": 6343189,
+      "random_programs": 160,
+      "million_invocations_exact": true,
+      "checkpoint_resume": true,
+      "uint32_wrap": true,
+      "select_regions": true,
+      "failed_instruction_atomic": true,
+      "irregular_details_preserved": 1024,
+      "hardware_gpu_executed": false,
+      "ether_integrated": false,
+      "failures": 0
+    },
+    {
+      "shared_state": "PASS",
+      "checks": 1245,
+      "original_cpu_xi": true,
+      "original_gpu_c01": true,
+      "quantum_handle_views": true,
+      "logical_domain_words": 4294967296,
+      "logical_routing_dense_words": 0,
+      "explicit_cpu_projection_bytes": 4,
+      "concurrent_writers": 8,
+      "stored_ghz_qubits": 1000,
+      "bell_auxiliaries": 2,
+      "entangled_non_clifford_trials": 32,
+      "growth_objects": 1101,
+      "growth_ports": 4201
+    },
+    {
+      "checkpoint_cli": "PASS",
+      "mixed_native_state": true,
+      "same_three_port_values": true,
+      "native_rvpc2_export": true,
+      "partial_checkpoint_preserved_previous": true,
+      "c03_checkpoint_compatible": true
+    }
+  ],
+  "c03_fixture": {
+    "file": "tests/fixtures/c03-demo.xqs.b64",
+    "bytes": 3995,
+    "sha256": "2436ad91fdcf5436d2d5385c2503b047a6c855834f0e0e6edc76acf31973db66"
+  },
+  "scope": "QSSD storage quotas removed; original CPU/GPU core revisions and their native constraints preserved."
+}
