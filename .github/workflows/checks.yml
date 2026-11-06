@@ -1,0 +1,36 @@
+name: Original cores and shared qSSD state
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Obtain and verify original cores
+        run: python3 scripts/setup.py
+      - name: Original GPU baseline
+        run: bash deps/gpu-virtual/build.sh
+      - name: Build and verify shared authority
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure
+          mkdir -p evidence/current
+          ./build/qssd_space demo evidence/current/demo.xqs > evidence/current/demo.jsonl
+          ./build/qssd_space measure > evidence/current/state-handoffs.json
+      - name: ASan, UBSan and leak detection
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DCMAKE_CXX_FLAGS='-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined'
+          cmake --build build-sanitized --parallel 2
+          ctest --test-dir build-sanitized --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shared-state-evidence
+          path: evidence/current/

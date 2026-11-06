@@ -1,0 +1,5 @@
+/deps/
+/build*/
+/evidence/current/
+*.pending*
+__pycache__/

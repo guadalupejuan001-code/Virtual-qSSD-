@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-06",
+  "profile": "native XI/Ether + original GPU C01 + shared qSSD authority",
+  "dependencies": {
+    "mundo-x": {
+      "repository": "guadalupejuan001-code/mundo-X",
+      "commit": "e2778d962af22f6f1a0794058dd4685fc2573966"
+    },
+    "reverse-pc": {
+      "repository": "guadalupejuan001-code/REVERSE-PC",
+      "commit": "08c363e6c6855c14026c86046af7183a45f45a98"
+    },
+    "gpu-virtual": {
+      "repository": "guadalupejuan001-code/GPU-VIRTUAL",
+      "commit": "6f9a8affa0b1cee4028f8145922fd6dbdbefbefb"
+    }
+  },
+  "host": "Linux x86_64",
+  "release_ctest_suites_passed": 3,
+  "asan_ubsan_ctest_suites_passed": 3,
+  "leak_detection_local": "disabled because LeakSanitizer cannot operate under this host ptrace/proc restrictions; CI enables it",
+  "checks": [
+    {
+      "profile": "XGPU-C01",
+      "checks": 6343189,
+      "random_programs": 160,
+      "million_invocations_exact": true,
+      "checkpoint_resume": true,
+      "uint32_wrap": true,
+      "select_regions": true,
+      "failed_instruction_atomic": true,
+      "irregular_details_preserved": 1024,
+      "hardware_gpu_executed": false,
+      "ether_integrated": false,
+      "failures": 0
+    },
+    {
+      "shared_state": "PASS",
+      "checks": 1235,
+      "original_cpu_xi": true,
+      "original_gpu_c01": true,
+      "quantum_handle_views": true,
+      "logical_domain_words": 4294967296,
+      "logical_routing_dense_words": 0,
+      "explicit_cpu_projection_bytes": 4,
+      "concurrent_writers": 8,
+      "stored_ghz_qubits": 1000,
+      "bell_auxiliaries": 2,
+      "entangled_non_clifford_trials": 32
+    },
+    {
+      "checkpoint_cli": "PASS",
+      "mixed_native_state": true,
+      "same_three_port_values": true,
+      "native_rvpc2_export": true,
+      "partial_checkpoint_preserved_previous": true
+    }
+  ],
+  "additional_original_cpu_control": {
+    "random_circuits": 200,
+    "Ether_window_cases": 32,
+    "max_observable_error": 3.663735981263017e-15,
+    "RNG_memory_revision_rollback": true,
+    "RVPC2_native_transport": "pass"
+  },
+  "scope": {
+    "hardware_gpu_executed": false,
+    "android_render_profiles_C09_C10_connected": false,
+    "native_gpu_C01_connected": true,
+    "cpu_XI_connected": true,
+    "logical_alias_is_quantum_entanglement": false,
+    "native_Bell_transfer_verified": true
+  }
+}
