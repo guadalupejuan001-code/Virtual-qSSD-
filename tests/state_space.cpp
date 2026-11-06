@@ -1,4 +1,6 @@
 #include "qssd/state_space.hpp"
+#include "qssd/state_bus.hpp"
+#include "qssd/state_archive.hpp"
 #include <cmath>
 #include <iostream>
 #include <random>
@@ -137,6 +139,18 @@ void scale_and_concurrency() {
   for (unsigned i = 1; i < 1000; ++i) all_x.push_back({std::to_string(i), 'X'});
   near(recovered.epoch()->cpu.core().expectation(all_x), 1);
   need(recovered.epoch()->cpu.core().stats().active_qubits == 1002, "Bell auxiliaries not accounted for");
+  qssd::StateBus<qssd::State> complete(*space.epoch());auto pinned=complete.snapshot();auto branch=complete.fork();
+  branch.update([](qssd::State& state){state.cpu.execute("seed 73\nh 1500\nt 1500\ncx 1500 1501\nmem_bind 9999 1500\n");return true;},"quantum-branch");
+  need(complete.snapshot()==pinned&&branch.snapshot()->value->cpu.core().stats().active_qubits==1002,"full-state fork corrupted original CPU graph");
+  need(complete.snapshot()->value->objects.at("huge").field==branch.snapshot()->value->objects.at("huge").field,"full-state fork copied compact GPU field");
+  auto original=branch.snapshot()->value->cpu;const auto nativeCpuBytes=reverse_pc::rvpc2::save(original);
+  qssd::StateArchive archive;archive.add("cpu",std::string(nativeCpuBytes.begin(),nativeCpuBytes.end()));archive.add("resources",std::string("source\0binary",13));
+  const auto recoveredArchive=qssd::StateArchive::decode(archive.encode());const auto& cpuBytes=recoveredArchive.get("cpu");
+  auto replay=reverse_pc::rvpc2::restore({cpuBytes.begin(),cpuBytes.end()});
+  need(reverse_pc::rvpc2::save(replay)==nativeCpuBytes,"complete CPU native archive lost phases, bindings or RNG");
+  need(replay.execute("measure 1500\n")==original.execute("measure 1500\n"),"restored RNG future diverged");
+  complete.rewind(pinned->serial);need(complete.snapshot()->value==pinned->value,"rewind failed to reuse the full original state");
+
 }
 }
 int main() {

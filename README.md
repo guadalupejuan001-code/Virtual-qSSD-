@@ -1,5 +1,12 @@
 # Virtual qSSD — espacio de estados compartido
 
+**C03:** `qssd/state_bus.hpp` añade una autoridad para estados lógicos completos,
+transacciones, conflictos, historial, marcadores, restauración de versiones y
+bifurcaciones independientes. `qssd/state_archive.hpp` conserva checkpoints
+deduplicados verificables. La integración de Velocity almacena la CPU nativa,
+sus recursos y programas, componentes y el trabajo gráfico con sus dependencias.
+Véase [el diseño y alcance de C03](docs/C03-state-bus.md).
+
 **C02:** `qssd/shared_projection.hpp` exporta observaciones inmutables de una
 autoridad existente a puertos CPU/SSD/GPU. Una entrega conserva la identidad y
 la revisión; un resultado idéntico conserva el mismo objeto. Los consumidores
