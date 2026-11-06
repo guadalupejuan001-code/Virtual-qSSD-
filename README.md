@@ -1,5 +1,12 @@
 # Virtual qSSD — espacio de estados compartido
 
+**C02:** `qssd/shared_projection.hpp` exporta observaciones inmutables de una
+autoridad existente a puertos CPU/SSD/GPU. Una entrega conserva la identidad y
+la revisión; un resultado idéntico conserva el mismo objeto. Los consumidores
+pueden materializar una representación para su API física, contabilizando esa
+proyección por separado. La integración de REVERSE Velocity conserva sus
+ecuaciones y primitivas XI/REgraphics.
+
 Componente propio de X construido con las reglas y los núcleos de **Mundo X /
 Ether, REVERSE-PC y GPU-VIRTUAL**. Su primera versión C01 conecta la CPU XI,
 el perfil nativo GPU C01 y qSSD mediante una autoridad común. El contenido se
