@@ -1,5 +1,11 @@
 # Virtual qSSD — espacio de estados compartido
 
+**C04:** el historial crece bajo demanda por defecto, sin expulsión automática
+de revisiones ni topes propios de qSSD para marcadores, objetos, puertos,
+descripciones compactas o checkpoints. Se conservan las comprobaciones de
+integridad, las referencias inmutables y los formatos `XQSSD1` y `QSB3`.
+Véase [crecimiento y retención de C04](docs/C04-dynamic-growth.md).
+
 **C03:** `qssd/state_bus.hpp` añade una autoridad para estados lógicos completos,
 transacciones, conflictos, historial, marcadores, restauración de versiones y
 bifurcaciones independientes. `qssd/state_archive.hpp` conserva checkpoints
@@ -127,11 +133,13 @@ resultados de esos perfiles.
 
 El dominio de `Field` conserva el límite original de 2^32 identidades y uint32
 módulo 2^32. Las direcciones de InverseMemory conservan sus presupuestos
-originales; aquí no hay reserva densa de ese espacio. qSSD admite 1024 objetos,
-4096 puertos, hasta 12 MiB estimados de descripciones compactas y checkpoints
-de hasta 64 MiB. El tamaño de una descripción o checkpoint no es la RAM del
-proceso ni capacidad física nueva. Datos arbitrarios pueden necesitar muchos
-detalles y alcanzar sus presupuestos.
+originales; aquí no hay reserva densa de ese espacio. Los contenedores de qSSD
+crecen con los datos que reciben, sujetos a la memoria, el disco y la
+representación de tamaños del anfitrión. El historial predeterminado conserva
+todas sus revisiones; una retención finita se aplica solo cuando el consumidor
+la solicita explícitamente. El tamaño de una descripción o checkpoint no es la
+RAM del proceso ni capacidad física nueva. Los presupuestos y formatos de los
+núcleos CPU/GPU originales fijados por SHA siguen siendo los de esos núcleos.
 
 Los cambios se confirman con una raíz inmutable y un bloqueo de escritores;
 se copian metadatos compactos según haga falta. El disco anfitrión se utiliza

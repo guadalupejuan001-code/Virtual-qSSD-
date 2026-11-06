@@ -1,3 +1,4 @@
+import base64
 import json
 from pathlib import Path
 import resource
@@ -16,6 +17,18 @@ def run(*args, ok=True):
 
 with tempfile.TemporaryDirectory() as temporary:
     root = Path(temporary)
+    legacy = root / 'c03.xqs'
+    legacy.write_bytes(base64.b64decode((Path(__file__).parent / 'fixtures' / 'c03-demo.xqs.b64').read_bytes()))
+    assert json.loads(run('inspect', legacy))['checkpoint_bytes'] == legacy.stat().st_size
+    for port in ('cpu:joint', 'gpu:joint', 'ssd:joint'):
+        assert json.loads(run('observe', legacy, port, 42))['value'] == 0x12345678
+    legacy_program = root / 'c03-continue.xi'
+    legacy_program.write_text('expect Z:400 Z:200\nmem_store 123 77\n')
+    legacy_continued = root / 'c03-continued.xqs'
+    assert json.loads(run('run-xi', legacy, legacy_program, legacy_continued))['value'] == 1
+    legacy_native = root / 'c03-native.rvp'
+    run('export-cpu', legacy_continued, legacy_native)
+    assert legacy_native.read_bytes()[:5] == b'RVPC2'
     checkpoint = root / 'space.xqs'
     result = [json.loads(line) for line in run('demo', checkpoint).splitlines()]
     assert result[0]['same_native_gpu_field'] and result[0]['cpu_gpu_ssd_same_identity_and_revision']
@@ -55,4 +68,4 @@ with tempfile.TemporaryDirectory() as temporary:
 
 print(json.dumps({'checkpoint_cli': 'PASS', 'mixed_native_state': True,
                   'same_three_port_values': True, 'native_rvpc2_export': True,
-                  'partial_checkpoint_preserved_previous': True}))
+                  'partial_checkpoint_preserved_previous': True, 'c03_checkpoint_compatible': True}))

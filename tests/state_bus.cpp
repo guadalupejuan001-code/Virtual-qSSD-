@@ -40,6 +40,6 @@ int main(){try{
  need(recovered.encode()==encoded);invalid([&]{archive.add("cpu.native","duplicate");});
  for(std::size_t index:{std::size_t(0),encoded.size()/2,encoded.size()-1}){auto badBytes=encoded;badBytes[index]^=1;invalid([&]{qssd::StateArchive::decode(badBytes);});}
  for(std::size_t size:{std::size_t(0),std::size_t(27),encoded.size()-1})invalid([&]{qssd::StateArchive::decode(encoded.substr(0,size));});
- invalid([&]{qssd::StateBus<Graph> badBus(Graph{},0);});
+ qssd::StateBus<Graph> growing(Graph{},0);need(growing.stats().historyCapacity==0);
  std::cout<<"{\"state_bus\":\"PASS\",\"checks\":"<<checks<<",\"concurrent_writes\":4000,\"full_graph_consistent\":true,\"archive_deduplicated\":true}\n";return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}}

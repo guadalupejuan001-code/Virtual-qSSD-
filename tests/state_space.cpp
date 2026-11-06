@@ -152,15 +152,35 @@ void scale_and_concurrency() {
   complete.rewind(pinned->serial);need(complete.snapshot()->value==pinned->value,"rewind failed to reuse the full original state");
 
 }
+void growing_space() {
+  qssd::Space space;
+  for(unsigned i=0;i<1100;i++) {
+    xgpu::Machine producer(xgpu::example(2));producer.run();
+    space.publish_gpu("object-"+std::to_string(i),producer);
+  }
+  for(unsigned i=0;i<4200;i++)space.bind("ssd:port-"+std::to_string(i),"object-"+std::to_string(i%1100));
+  xgpu::Machine producer(xgpu::example(2));producer.run();
+  const std::string long_name(256,'n');space.publish_gpu(long_name,producer);space.bind("cpu:"+long_name,long_name);
+  const auto bytes=space.checkpoint();auto restored=qssd::Space::restore(bytes);
+  need(restored.epoch()->objects.size()==1101&&restored.epoch()->ports.size()==4201,"dynamic object/port growth failed");
+  need(restored.checkpoint()==bytes,"growing space did not restore exactly");
+  need(restored.acquire("ssd:port-0").field==restored.acquire("ssd:port-1100").field,"growing space lost alias topology");
+  need(restored.observe("cpu:"+long_name,0)==producer.output().at(0),"long identity failed to restore");
+  // Valid checksums with impossible counts must still reject before traversal.
+  reverse_pc::state_io::Reader reader(bytes,std::numeric_limits<std::size_t>::max());
+  (void)reader.string(bytes.size());(void)reader.u64();(void)reader.u64();(void)reader.string(bytes.size());
+  auto invalid_count=bytes.substr(0,reader.at);reverse_pc::state_io::Writer writer;writer.data=invalid_count;writer.u64(UINT64_MAX);
+  rejects([&]{qssd::Space::restore(writer.finish());});
+}
 }
 int main() {
   try {
-    classical(); quantum(); scale_and_concurrency();
+    classical(); quantum(); scale_and_concurrency(); growing_space();
     std::cout << "{\"shared_state\":\"PASS\",\"checks\":" << checks
       << ",\"original_cpu_xi\":true,\"original_gpu_c01\":true,\"quantum_handle_views\":true"
       << ",\"logical_domain_words\":4294967296,\"logical_routing_dense_words\":0"
       << ",\"explicit_cpu_projection_bytes\":4,\"concurrent_writers\":8,\"stored_ghz_qubits\":1000"
-      << ",\"bell_auxiliaries\":2,\"entangled_non_clifford_trials\":32}\n";
+      << ",\"bell_auxiliaries\":2,\"entangled_non_clifford_trials\":32,\"growth_objects\":1101,\"growth_ports\":4201}\n";
     return 0;
   } catch (const std::exception& error) { std::cerr << "QSSD_TEST_FAIL " << error.what() << '\n'; return 1; }
 }

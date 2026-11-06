@@ -10,8 +10,9 @@ retiene una raíz completa. `update` publica una transición validada; `publish`
 también permite exigir una raíz de origen exacta y rechazar conflictos. Las
 excepciones de la operación o del validador conservan la autoridad anterior.
 
-El historial usa un anillo de 32 versiones por defecto, configurable entre 1 y
-4096. Hasta 16 marcadores pueden retener puntos concretos. `rewind` publica el
+Desde C04, el historial crece bajo demanda y conserva todas las revisiones por
+defecto; los marcadores también crecen sin una cuota propia de qSSD. Una
+retención finita solo se activa si el consumidor la solicita. `rewind` publica el
 estado anterior con una revisión nueva; los lectores que trabajan con una vista
 antigua siguen conservándola. `fork` crea otra autoridad que comparte los datos
 inmutables iniciales y puede evolucionar por separado. Las referencias externas
@@ -19,7 +20,8 @@ también prolongan la vida de los datos; estos límites no son un límite de RAM
 total del proceso.
 
 `qssd/state_archive.hpp` proporciona el formato `QSB3` para checkpoints explícitos
-de hasta 64 MiB y 512 secciones. Deduplica contenidos por igualdad exacta de bytes
+sin las anteriores cuotas de 64 MiB y 512 secciones. Valida las dimensiones contra
+los bytes presentes en el archivo. Deduplica contenidos por igualdad exacta de bytes
 y recupera las secciones aliadas con el mismo objeto inmutable. Los hashes solo
 aceleran la búsqueda y detectan corrupción accidental; no autentican contenido.
 La ruta normal del bus no serializa ni escribe archivos.
