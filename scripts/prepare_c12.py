@@ -11,6 +11,8 @@ import sys
 
 source, output = (Path(value) for value in sys.argv[1:3])
 expected_git_blobs = {
+    "control_gpu.hpp": "682a7126d20981f7a9c1625a03830e7a6b5761e0",
+    "float32_gpu.hpp": "326dd1f625649c163328aa55bfc2fd7afa2b36b7",
     "relaciones_gpu.hpp": "41b804411c4d9d796a1128997c30b3590b44e87d",
     "ejecucion_gpu.hpp": "17efe23517693b5b9b311d1397c2c654b9e4b3cb",
 }
@@ -44,7 +46,7 @@ for name, blob in expected_git_blobs.items():
     return Value::polynomial(std::move(source));
 }
 """, name + ":field_root")
-    else:
+    elif name == "ejecucion_gpu.hpp":
         text = add_once(
             text, "    std::size_t enqueue(Kernel kernel,Index n,unsigned local=64,unsigned shared_words=0,",
             """    // QSSD bridge: initialize C12 from the existing immutable C01 field.
