@@ -1,5 +1,14 @@
 # Virtual qSSD — espacio de estados compartido
 
+**C06 — Tres núcleos en el mismo laboratorio:** qSSD fija GPU-VIRTUAL C12
+(base oficial), la CPU XI/Ether original de REVERSE-PC y el estado qSSD C05.
+Una interfaz validada permite a C12 consumir el **mismo campo inmutable** que
+publicó qSSD sin copiar el dominio. La CPU publica coeficientes por XI, C12
+calcula relaciones y binary32, y QSSD mantiene las revisiones/checkpoints.
+Las vistas cuánticas conservan estados y correlaciones del XI original;
+sus observaciones se ejecutan en CPU anfitriona, no en GPU física.
+[Pruebas y límites C06](docs/C06-three-cores-experiment.md).
+
 **C05:** la teletransportación Bell simulada original de un qubit sigue
 intacta. Se añade `teleport_quantum_byte` para trasladar atómicamente los ocho
 qubits de una vinculación explícita de InverseMemory y publicar el mismo objeto
