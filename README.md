@@ -1,5 +1,13 @@
 # Virtual qSSD — espacio de estados compartido
 
+**C05:** la teletransportación Bell simulada original de un qubit sigue
+intacta. Se añade `teleport_quantum_byte` para trasladar atómicamente los ocho
+qubits de una vinculación explícita de InverseMemory y publicar el mismo objeto
+QSSD a través de sus puertos CPU/GPU/SSD, con 16 mediciones clásicas, validación
+de origen, rollback y comprobación Pauli antes/después. Una prueba host compara
+entregas de referencias con copias densas, sin equiparar las semánticas ni
+atribuir el resultado a hardware cuántico. [Alcance C05](docs/C05-quantum-byte-handoff.md).
+
 **C03:** `qssd/state_bus.hpp` añade una autoridad para estados lógicos completos,
 transacciones, conflictos, historial, marcadores, restauración de versiones y
 bifurcaciones independientes. `qssd/state_archive.hpp` conserva checkpoints

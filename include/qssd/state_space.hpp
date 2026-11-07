@@ -2,6 +2,7 @@
 #include "qssd/quantum_transfer.hpp"
 #include "estado_gpu.hpp"
 #include "integration/state_io.hpp"
+#include <array>
 #include <atomic>
 #include <functional>
 #include <mutex>
@@ -225,6 +226,48 @@ class Space {
       (void)reverse_pc::rvpc2::save(state.cpu); return true;
     });
     return receipt;
+  }
+  // C05: one atomic simulated Bell transfer for the eight selected qubits
+  // backing an InverseMemory byte. Existing CPU/GPU/SSD ports remain bound to
+  // the SAME logical object and observe its new revision and destination.
+  // The 16 classical Bell outcomes are returned explicitly; no physical
+  // entanglement, zero-time transport or implicit quantum measurement is claimed.
+  std::array<BellReceipt, 8> teleport_quantum_byte(
+      const std::string& port, const std::string& source_base,
+      const std::string& auxiliary_base, const std::string& destination_base) {
+    valid_port(port);
+    const std::array<std::string, 3> bases{
+        address_offset(source_base, 0), address_offset(auxiliary_base, 0),
+        address_offset(destination_base, 0)};
+    std::array<std::array<std::string, 8>, 3> addresses;
+    std::set<std::string> distinct;
+    for (std::size_t group = 0; group < bases.size(); ++group) {
+      for (unsigned bit = 0; bit < 8; ++bit) {
+        auto address = address_offset(bases[group], bit);
+        if (!distinct.insert(address).second)
+          throw std::invalid_argument("QSSD Bell byte ranges overlap");
+        addresses[group][bit] = std::move(address);
+      }
+    }
+    std::array<BellReceipt, 8> receipts{};
+    transition([&](State& state) {
+      const auto& object = resolve(state, port);
+      if (object.field || object.quantum_address.empty())
+        throw std::invalid_argument("QSSD Bell byte requires a quantum port");
+      const auto name = state.ports.at(port);
+      const auto logical = object.quantum_address;
+      if (bound_quantum_base(state.cpu, logical) != bases[0])
+        throw std::invalid_argument("QSSD Bell source differs from the bound quantum byte");
+      for (unsigned bit = 0; bit < 8; ++bit)
+        receipts[bit] = bell_transfer(state.cpu,
+            addresses[0][bit], addresses[1][bit], addresses[2][bit]);
+      state.cpu.execute("mem_bind " + logical + " " + bases[2] + "\n");
+      // Revisions and in-flight leases are preserved by the immutable root.
+      publish(state, name, {}, logical);
+      (void)reverse_pc::rvpc2::save(state.cpu);
+      return true;
+    });
+    return receipts;
   }
   // Full current state, compact fields and alias topology; explicit checkpoint
   // only. Routing and computation do not serialize or rewrite this transport.
