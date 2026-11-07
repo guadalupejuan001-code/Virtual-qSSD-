@@ -1,5 +1,14 @@
 {
-  "mundo-x": {"repository": "guadalupejuan001-code/mundo-X", "commit": "e2778d962af22f6f1a0794058dd4685fc2573966"},
-  "reverse-pc": {"repository": "guadalupejuan001-code/REVERSE-PC", "commit": "08c363e6c6855c14026c86046af7183a45f45a98"},
-  "gpu-virtual": {"repository": "guadalupejuan001-code/GPU-VIRTUAL", "commit": "6f9a8affa0b1cee4028f8145922fd6dbdbefbefb"}
+  "mundo-x": {
+    "repository": "guadalupejuan001-code/mundo-X",
+    "commit": "e2778d962af22f6f1a0794058dd4685fc2573966"
+  },
+  "reverse-pc": {
+    "repository": "guadalupejuan001-code/REVERSE-PC",
+    "commit": "08c363e6c6855c14026c86046af7183a45f45a98"
+  },
+  "gpu-virtual": {
+    "repository": "guadalupejuan001-code/GPU-VIRTUAL",
+    "commit": "4cdd47f487cfadbca559dd8c2f5abc0448cd77a7"
+  }
 }
