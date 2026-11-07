@@ -12,6 +12,12 @@ checkout anterior `e2778d9` y `main` `6f36ba5` en las rutas
 `inverse_memory.hpp`, `exact_t_experiment.hpp` y `ether_core.hpp`.
 Las revisiones posteriores afectan otras piezas, como X Render, y su
 compatibilidad con la extensión versionada de REVERSE-PC debe comprobarse.
+La prueba de actualizar **todo** Mundo X a `6f36ba5` fue rechazada por
+el verificador de ABI: `ether_render_spatial.hpp` cambió respecto al perfil
+que REVERSE-PC fija. C06 conserva **intencionadamente** el SHA anterior
+`e2778d9`, cuyos núcleos de CPU/quantum son idénticos a los de `main`,
+para no modificar REgraphics ni desactivar verificaciones de integridad.
+La CPU virtual sigue utilizando el `main` vigente de REVERSE-PC.
 
 C06 fija y conserva el núcleo C12 oficial `4cdd47f`. No cambia el código
 original de los núcleos. `scripts/prepare_c12.py` valida por hash Git blob
