@@ -1,6 +1,7 @@
 #pragma once
 #include "rvpc2.hpp"
 #include <string>
+#include <sstream>
 
 namespace qssd {
 using Runtime = mundo_x::QuantumRuntime;
@@ -14,6 +15,20 @@ inline std::string address_offset(std::string address, unsigned offset) {
     if (address.size() > 4096) throw std::length_error("qSSD address budget exceeded");
   }
   return address;
+}
+// Existing MXIM1 view inspection: confirms that an explicit logical byte
+// currently aliases the claimed eight-qubit source register. The binding is
+// authoritative in InverseMemory; it is not inferred from a QSSD port name.
+inline std::string bound_quantum_base(const Runtime& runtime, const std::string& logical_address) {
+  const auto canonical = address_offset(logical_address, 0);
+  const std::string prefix = "Q " + canonical + " ";
+  std::istringstream snapshot(runtime.memory().snapshot());
+  std::string line;
+  while (std::getline(snapshot, line)) {
+    if (line.compare(0, prefix.size(), prefix) == 0)
+      return line.substr(prefix.size());
+  }
+  throw std::invalid_argument("QSSD logical byte is not bound to a quantum register");
 }
 struct BellReceipt { bool m0, m1; };
 // Transactional wrapper around the original H/CX/Born measurement/X/Z protocol.
