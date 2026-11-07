@@ -261,7 +261,7 @@ class Space {
       for (unsigned bit = 0; bit < 8; ++bit)
         receipts[bit] = bell_transfer(state.cpu,
             addresses[0][bit], addresses[1][bit], addresses[2][bit]);
-      state.cpu.execute("mem_bind " + logical + " " + bases[2] + "\\n");
+      state.cpu.execute("mem_bind " + logical + " " + bases[2] + "\n");
       // Revisions and in-flight leases are preserved by the immutable root.
       publish(state, name, {}, logical);
       (void)reverse_pc::rvpc2::save(state.cpu);
