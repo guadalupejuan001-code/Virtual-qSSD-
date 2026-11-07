@@ -14,6 +14,8 @@ jobs:
         run: python3 scripts/setup.py
       - name: Original GPU baseline
         run: bash deps/gpu-virtual/build.sh
+      - name: Official GPU C12 correctness baseline
+        run: bash deps/gpu-virtual/build-c12.sh
       - name: Build and verify shared authority
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
@@ -24,6 +26,7 @@ jobs:
           ./build/qssd_space measure > evidence/current/state-handoffs.json
           ./build/qssd_transfer_compare > evidence/current/transfer-compare.json
           ./build/qssd_bell_byte_tests > evidence/current/quantum-byte.json
+          ./build/qssd_c12_tests > evidence/current/c06-three-cores.jsonl
       - name: ASan, UBSan and leak detection
         env:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
