@@ -122,6 +122,15 @@ class Space {
 
   // A reviewed read-only accessor shares the original immutable Field itself.
   // The producer can continue; no program or other registers are retained here.
+  // Import an explicitly classical producer descriptor into this component.
+  // Ownership is transferred into an immutable object; C12 consumers acquire
+  // that SAME object through the existing CPU/SSD/GPU ports. No dense output
+  // expansion, implicit quantum measurement, or duplicate device store.
+  void publish_field(const std::string& name, Field field) {
+    valid_name(name); field.validate();
+    auto immutable = std::make_shared<const Field>(std::move(field));
+    transition([&](State& state) { publish(state, name, immutable); return true; });
+  }
   void publish_gpu(const std::string& name, const xgpu::Machine& source) {
     FieldPtr field = source.output_view();
     transition([&](State& state) { publish(state, name, field); return true; });

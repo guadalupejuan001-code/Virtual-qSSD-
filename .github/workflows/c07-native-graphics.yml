@@ -1,0 +1,47 @@
+name: QSSD C07 native component and producer import
+on:
+  push:
+    branches: [feature/c07-native-graphics-20261108]
+permissions:
+  contents: write
+concurrency:
+  group: qssd-c07-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  component:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/c07-native-graphics-20261108
+      - name: Apply and retain the reviewed additive component API
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = feature/c07-native-graphics-20261108
+          python3 scripts/apply_c07_api.py
+          git diff --check
+          git add include/qssd/state_space.hpp CMakeLists.txt
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat(qssd): retain additive producer Field API and native graphics CTest targets'
+            git push origin HEAD:refs/heads/feature/c07-native-graphics-20261108
+          fi
+          mkdir -p evidence/current/c07
+          git rev-parse HEAD > evidence/current/c07/source-commit.txt
+      - name: Obtain and verify original pinned XI, Ether and GPU cores
+        run: python3 scripts/setup.py
+      - name: Build all original and new QSSD tests
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure | tee evidence/current/c07/ctest.txt
+      - name: Check native graphics memory safety
+        run: |
+          g++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -Iinclude tests/graphics_port.cpp -o build/c07-sanitized
+          ASAN_OPTIONS=detect_leaks=1:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 build/c07-sanitized | tee evidence/current/c07/sanitized.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qssd-c07-component-evidence
+          path: evidence/current/c07
+          if-no-files-found: error
