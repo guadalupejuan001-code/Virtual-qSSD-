@@ -108,6 +108,20 @@ void quantum() {
   }
   need(branches == 15, "not all Bell branches tested");
 }
+void committed_cpu_path() {
+  qssd::Space space;
+  const auto first = space.epoch()->revision;
+  const auto output = space.execute_cpu_committed("#!reverse-pc-machine-v1\nset r0 7\nstore8 700 r0\n");
+  (void)output;
+  need(space.epoch()->revision == first + 1, "committed CPU path did not publish exactly one revision");
+  const auto saved = space.checkpoint();
+  const auto revision = space.epoch()->revision;
+  rejects([&] { space.execute_cpu_committed("invalid_opcode\n"); });
+  need(space.epoch()->revision == revision && space.checkpoint() == saved,
+       "failed committed CPU transaction changed authority");
+  space.execute_cpu_committed("#!reverse-pc-machine-v1\nset r0 8\nstore8 700 r0\n");
+  need(space.epoch()->revision == revision + 1, "committed CPU path did not continue after rollback");
+}
 void scale_and_concurrency() {
   qssd::Space space;
   xgpu::Machine native(xgpu::example(xgpu::domain_limit)); native.run();
@@ -155,7 +169,7 @@ void scale_and_concurrency() {
 }
 int main() {
   try {
-    classical(); quantum(); scale_and_concurrency();
+    classical(); quantum(); committed_cpu_path(); scale_and_concurrency();
     std::cout << "{\"shared_state\":\"PASS\",\"checks\":" << checks
       << ",\"original_cpu_xi\":true,\"original_gpu_c01\":true,\"quantum_handle_views\":true"
       << ",\"logical_domain_words\":4294967296,\"logical_routing_dense_words\":0"

@@ -144,6 +144,20 @@ class Space {
     });
     return output;
   }
+  // Fast path for a caller that already knows the program must publish a new
+  // CPU revision. It preserves the same transactional copy/rollback boundary as
+  // execute_cpu(), but deliberately skips serializing the complete XI/Ether
+  // runtime before and after the program merely to rediscover that it changed.
+  // Do not use this for speculative/no-op programs: this API always commits one
+  // fresh qSSD revision when execution succeeds.
+  std::string execute_cpu_committed(const std::string& program) {
+    std::string output;
+    transition([&](State& state) {
+      output = state.cpu.execute(program);
+      return true;
+    });
+    return output;
+  }
   // CPU-produced coefficients remain small: only 4*(degree+1) requested bytes
   // are observed in its original InverseMemory. No logical array is generated.
   void publish_cpu_rule(const std::string& name, xgpu::Index count, const std::string& base, unsigned coefficients) {
