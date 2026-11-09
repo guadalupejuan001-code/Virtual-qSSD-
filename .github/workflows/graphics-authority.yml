@@ -1,0 +1,20 @@
+name: QSSD graphics delta authority
+on:
+  push:
+    branches: [feature/graphics-authority-delta-20261109]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'include/qssd/graphics_authority.hpp'
+      - 'tests/graphics_authority.cpp'
+      - '.github/workflows/graphics-authority.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify versioned graphics dependency state
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -Iinclude tests/graphics_authority.cpp -o graphics_authority_test
+          ./graphics_authority_test
