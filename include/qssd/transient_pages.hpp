@@ -72,12 +72,18 @@ class TransientPages final {
   ~TransientPages() { ::close(fd_); }
 
   void read(std::uint64_t page_index, std::uint8_t* page) {
+    read_part(page_index, 0, page, kPageSize);
+  }
+
+  void read_part(std::uint64_t page_index, std::size_t start, std::uint8_t* target,
+                 std::size_t size) {
     check_index(page_index);
+    check_part(start, size);
     if (!contains(page_index)) throw std::runtime_error("Página ausente en el respaldo de RAM.");
     const auto started = std::chrono::steady_clock::now();
     std::size_t done = 0;
-    while (done < kPageSize) {
-      const auto bytes = ::pread(fd_, page + done, kPageSize - done, offset(page_index, done));
+    while (done < size) {
+      const auto bytes = ::pread(fd_, target + done, size - done, offset(page_index, start + done));
       if (bytes < 0 && errno == EINTR) continue;
       if (bytes < 0) throw_io("Leer respaldo de RAM");
       if (bytes == 0) throw std::runtime_error("Lectura incompleta del respaldo de RAM.");
@@ -87,7 +93,13 @@ class TransientPages final {
   }
 
   void write(std::uint64_t page_index, const std::uint8_t* page) {
+    write_part(page_index, 0, page, kPageSize);
+  }
+
+  void write_part(std::uint64_t page_index, std::size_t start, const std::uint8_t* source,
+                  std::size_t size) {
     check_index(page_index);
+    check_part(start, size);
     const auto started = std::chrono::steady_clock::now();
     auto& bitmap = written_[page_index / kPagesPerBitmap];
     const auto index = page_index % kPagesPerBitmap;
@@ -99,8 +111,8 @@ class TransientPages final {
     if (!bitmap) bitmap = std::make_unique<WrittenBitmap>();
 
     std::size_t done = 0;
-    while (done < kPageSize) {
-      const auto bytes = ::pwrite(fd_, page + done, kPageSize - done, offset(page_index, done));
+    while (done < size) {
+      const auto bytes = ::pwrite(fd_, source + done, size - done, offset(page_index, start + done));
       if (bytes < 0 && errno == EINTR) continue;
       if (bytes < 0) throw_io("Escribir respaldo de RAM");
       if (bytes == 0) throw std::runtime_error("Escritura incompleta del respaldo de RAM.");
@@ -172,6 +184,11 @@ class TransientPages final {
 
   void check_index(std::uint64_t index) const {
     if (index >= page_count_) throw std::out_of_range("Página de respaldo fuera de la RAM invitada.");
+  }
+
+  static void check_part(std::size_t start, std::size_t size) {
+    if (start >= kPageSize || !size || size > kPageSize - start)
+      throw std::out_of_range("Fragmento fuera de la página de respaldo de RAM.");
   }
 
   bool contains(std::uint64_t index) const {
