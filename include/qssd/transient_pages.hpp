@@ -16,6 +16,7 @@
 
 #include <fcntl.h>
 #include <sys/statvfs.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 namespace qssd {
@@ -27,6 +28,12 @@ class TransientPages final {
  public:
   static constexpr std::uint64_t kPageSize = 4096;
   static constexpr std::uint64_t kStorageReserve = 1ULL << 30;
+  static constexpr std::size_t kMaxWritePages = 16;
+
+  struct PageWrite {
+    std::uint64_t index;
+    const std::uint8_t* bytes;
+  };
 
   static std::uint64_t spill_budget(const std::filesystem::path& directory) {
     struct statvfs stats {};
@@ -96,6 +103,18 @@ class TransientPages final {
     write_part(page_index, 0, page, kPageSize);
   }
 
+  // The caller still owns every input page (including old slots it has
+  // superseded) until this batch returns. Publish new slots after all runs.
+  void write_pages(const PageWrite* pages, std::size_t count) {
+    if (!count) return;
+    if (!pages || count > kMaxWritePages)
+      throw std::invalid_argument("Lote de escritura de RAM inválido.");
+    std::array<PartWrite, kMaxWritePages> parts;
+    for (std::size_t i = 0; i < count; ++i)
+      parts[i] = {pages[i].index, 0, pages[i].bytes, kPageSize};
+    write_parts(parts, count);
+  }
+
   void write_part(std::uint64_t page_index, std::size_t start, const std::uint8_t* source,
                   std::size_t size) {
     check_index(page_index);
@@ -107,20 +126,20 @@ class TransientPages final {
     const bool new_slot = !bitmap || !((*bitmap)[index / 64] & bit);
     if (new_slot && committed_slots_ >= slot_limit_)
       throw std::runtime_error("Se agotó el espacio asignado al respaldo temporal de RAM.");
-    if (new_slot && (committed_slots_ % kSpaceCheckInterval == 0)) check_storage();
+    check_allocation(new_slot);
     if (!bitmap) bitmap = std::make_unique<WrittenBitmap>();
 
-    std::size_t done = 0;
-    while (done < size) {
-      const auto bytes = ::pwrite(fd_, source + done, size - done, offset(page_index, start + done));
-      if (bytes < 0 && errno == EINTR) continue;
-      if (bytes < 0) throw_io("Escribir respaldo de RAM");
-      if (bytes == 0) throw std::runtime_error("Escritura incompleta del respaldo de RAM.");
-      done += static_cast<std::size_t>(bytes);
+    iovec part{const_cast<std::uint8_t*>(source), size};
+    try {
+      write_contiguous(&part, 1, offset(page_index, start));
+    } catch (...) {
+      if (new_slot) slots_until_space_check_ = 0;
+      throw;
     }
     if (new_slot) {
       (*bitmap)[index / 64] |= bit;
       ++committed_slots_;
+      --slots_until_space_check_;
     }
     write_time_ += std::chrono::steady_clock::now() - started;
   }
@@ -134,6 +153,8 @@ class TransientPages final {
     } while (result != 0 && errno == EINTR);
     for (auto& bitmap : written_) bitmap.reset();
     committed_slots_ = 0;
+    write_calls_ = 0;
+    slots_until_space_check_ = 0;
     read_time_ = write_time_ = {};
   }
 
@@ -144,8 +165,18 @@ class TransientPages final {
   std::uint64_t write_us() const noexcept {
     return std::chrono::duration_cast<std::chrono::microseconds>(write_time_).count();
   }
+  std::uint64_t write_calls() const noexcept { return write_calls_; }
 
  private:
+  friend class PackedTransientPages;
+
+  struct PartWrite {
+    std::uint64_t index;
+    std::size_t start;
+    const std::uint8_t* bytes;
+    std::size_t size;
+  };
+
   // Keep the free-space check off the eviction hot path and leave room for
   // the following batch of writes, including larger filesystem fragments.
   static constexpr std::uint64_t kSpaceCheckInterval = 256;
@@ -179,7 +210,8 @@ class TransientPages final {
   }
 
   [[noreturn]] static void throw_io(const char* operation) {
-    throw std::system_error(errno, std::generic_category(), operation);
+    const auto error = errno;
+    throw std::system_error(error, std::generic_category(), operation);
   }
 
   void check_index(std::uint64_t index) const {
@@ -197,6 +229,94 @@ class TransientPages final {
     return bitmap && ((*bitmap)[in_bitmap / 64] & (std::uint64_t{1} << (in_bitmap % 64)));
   }
 
+  void write_parts(std::array<PartWrite, kMaxWritePages>& parts, std::size_t count) {
+    const auto started = std::chrono::steady_clock::now();
+    for (std::size_t i = 0; i < count; ++i) {
+      check_index(parts[i].index);
+      check_part(parts[i].start, parts[i].size);
+      if (!parts[i].bytes) throw std::invalid_argument("Lote de escritura de RAM inválido.");
+    }
+    std::sort(parts.begin(), parts.begin() + count, [](const auto& left, const auto& right) {
+      return offset(left.index, left.start) < offset(right.index, right.start);
+    });
+
+    std::size_t new_slots = 0;
+    off_t previous_end = 0;
+    for (std::size_t i = 0; i < count; ++i) {
+      const auto& part = parts[i];
+      const auto start = offset(part.index, part.start);
+      if (start < previous_end)
+        throw std::invalid_argument("Lote de escritura de RAM superpuesto.");
+      previous_end = start + static_cast<off_t>(part.size);
+      if (i != 0 && part.index == parts[i - 1].index) continue;
+      if (!contains(part.index)) ++new_slots;
+    }
+    if (new_slots > slot_limit_ - committed_slots_)
+      throw std::runtime_error("Se agotó el espacio asignado al respaldo temporal de RAM.");
+    check_allocation(new_slots);
+    for (std::size_t i = 0; i < count; ++i) {
+      auto& bitmap = written_[parts[i].index / kPagesPerBitmap];
+      if (!bitmap) bitmap = std::make_unique<WrittenBitmap>();
+    }
+
+    try {
+      std::array<iovec, kMaxWritePages> run;
+      for (std::size_t first = 0; first < count;) {
+        const auto start = offset(parts[first].index, parts[first].start);
+        auto end = start;
+        auto last = first;
+        while (last < count && offset(parts[last].index, parts[last].start) == end) {
+          const auto& part = parts[last];
+          run[last - first] = {const_cast<std::uint8_t*>(part.bytes), part.size};
+          end += static_cast<off_t>(part.size);
+          ++last;
+        }
+        write_contiguous(run.data(), last - first, start);
+        first = last;
+      }
+    } catch (...) {
+      if (new_slots) slots_until_space_check_ = 0;
+      throw;
+    }
+    for (std::size_t i = 0; i < count; ++i) {
+      const auto page = parts[i].index;
+      const auto bit = page % kPagesPerBitmap;
+      (*written_[page / kPagesPerBitmap])[bit / 64] |= std::uint64_t{1} << (bit % 64);
+    }
+    committed_slots_ += new_slots;
+    slots_until_space_check_ -= new_slots;
+    write_time_ += std::chrono::steady_clock::now() - started;
+  }
+
+  void write_contiguous(iovec* parts, std::size_t count, off_t at) {
+    while (count) {
+      ++write_calls_;
+      const auto bytes = count == 1 ? ::pwrite(fd_, parts->iov_base, parts->iov_len, at)
+                                   : ::pwritev(fd_, parts, static_cast<int>(count), at);
+      if (bytes < 0 && errno == EINTR) continue;
+      if (bytes < 0) throw_io("Escribir respaldo de RAM");
+      if (bytes == 0) throw std::runtime_error("Escritura incompleta del respaldo de RAM.");
+      at += bytes;
+      auto written = static_cast<std::size_t>(bytes);
+      while (count && written >= parts->iov_len) {
+        written -= parts->iov_len;
+        ++parts;
+        --count;
+      }
+      if (count && written) {
+        parts->iov_base = static_cast<std::uint8_t*>(parts->iov_base) + written;
+        parts->iov_len -= written;
+      }
+    }
+  }
+
+  void check_allocation(std::size_t new_slots) {
+    if (new_slots > slots_until_space_check_) {
+      check_storage();
+      slots_until_space_check_ = kSpaceCheckInterval;
+    }
+  }
+
   void check_storage() const {
     struct statvfs stats {};
     if (::fstatvfs(fd_, &stats) != 0) throw_io("Consultar almacenamiento para la RAM");
@@ -208,6 +328,8 @@ class TransientPages final {
   const std::uint64_t slot_limit_;
   std::vector<std::unique_ptr<WrittenBitmap>> written_;
   std::uint64_t committed_slots_ = 0;
+  std::uint64_t write_calls_ = 0;
+  std::size_t slots_until_space_check_ = 0;
   std::chrono::steady_clock::duration read_time_{}, write_time_{};
   int fd_ = -1;
 };
